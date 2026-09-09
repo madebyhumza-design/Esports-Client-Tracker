@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Roster — Client Tracker</title>
+<style>
+  :root{
+    --ink:#12141C;
+    --surface:#1B1E29;
+    --surface-2:#232733;
+    --line:#2E3341;
+    --text:#ECEDF2;
+    --muted:#8B8FA3;
+    --gold:#F2A93B;
+    --blue:#4C8DFF;
+    --green:#4CC38A;
+    --red:#E5576B;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--ink);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    font-size:14px;
+    line-height:1.5;
+  }
+  .app{ display:flex; min-height:100vh; }
+  .side{
+    width:190px; flex-shrink:0; background:var(--surface);
+    border-right:1px solid var(--line); padding:20px 12px;
+    display:flex; flex-direction:column; gap:4px;
+  }
+  .brand{ padding:4px 10px 18px 10px; display:flex; justify-content:space-between; align-items:flex-start; }
+  .brand .name{ font-size:17px; font-weight:800; letter-spacing:-0.02em; }
+  .brand .sub{ color:var(--muted); font-size:11.5px; margin-top:2px; }
+  .bell{
+    position:relative; background:var(--surface-2); border:1px solid var(--line);
+    border-radius:7px; width:28px; height:28px; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; font-size:13px; flex-shrink:0;
+  }
+  .bell .dot{
+    position:absolute; top:-4px; right:-4px; background:var(--red); color:#fff;
+    font-size:9.5px; font-weight:700; border-radius:20px; padding:1px 4px; min-width:14px; text-align:center;
+  }
+  .navbtn{
+    text-align:left; background:none; border:none; color:var(--muted);
+    font-size:13.5px; font-weight:600; padding:9px 10px; border-radius:8px;
+    cursor:pointer; display:flex; justify-content:space-between; align-items:center;
+  }
+  .navbtn:hover{ background:var(--surface-2); color:var(--text); }
+  .navbtn.active{ background:var(--surface-2); color:var(--text); }
+  .navbtn .count{
+    font-variant-numeric:tabular-nums; font-size:11px; color:var(--muted);
+    background:var(--ink); padding:1px 7px; border-radius:20px;
+  }
+  .navbtn.active .count{ color:var(--gold); }
+  .navdiv{ height:1px; background:var(--line); margin:8px 4px; }
+
+  .main{ flex:1; padding:28px 34px; max-width:1040px; }
+  .pagehead{ display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:20px; gap:12px; flex-wrap:wrap; }
+  .pagehead h1{ font-size:22px; margin:0; letter-spacing:-0.01em; }
+  .pagehead p{ color:var(--muted); margin:4px 0 0 0; font-size:13px; }
+  .headbtns{ display:flex; gap:8px; }
+
+  .btn{
+    background:var(--gold); color:#1a1300; border:none; font-weight:700;
+    font-size:13px; padding:9px 16px; border-radius:8px; cursor:pointer;
+  }
+  .btn:hover{ filter:brightness(1.08); }
+  .btn.secondary{ background:var(--surface-2); color:var(--text); border:1px solid var(--line); }
+  .btn.small{ padding:6px 11px; font-size:12px; }
+  .btn.danger{ background:var(--red); color:#fff; }
+
+  .stats{ display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:26px; }
+  .stat{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px; border-top:3px solid var(--gold); }
+  .stat.blue{ border-top-color:var(--blue); }
+  .stat.green{ border-top-color:var(--green); }
+  .stat.red{ border-top-color:var(--red); }
+  .stat .num{ font-size:26px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-0.02em; }
+  .stat .lbl{ color:var(--muted); font-size:12px; margin-top:2px; }
+
+  .checklist{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px; margin-bottom:26px; }
+  .checklist h2{ font-size:14px; margin:0 0 12px 0; }
+  .citem{ display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); }
+  .citem:last-child{ border-bottom:none; }
+  .citem input[type=checkbox]{ width:17px; height:17px; accent-color:var(--gold); cursor:pointer; }
+  .citem label{ flex:1; cursor:pointer; }
+  .citem.done label{ color:var(--muted); text-decoration:line-through; }
+
+  table{ width:100%; border-collapse:collapse; }
+  th{ text-align:left; font-size:11.5px; color:var(--muted); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  td{ padding:9px 10px; border-bottom:1px solid var(--line); font-size:13px; vertical-align:top; }
+  tr:last-child td{ border-bottom:none; }
+  .tag{ display:inline-block; padding:2px 9px; border-radius:20px; font-size:11.5px; font-weight:600; }
+  .tag.new{ background:rgba(76,141,255,.15); color:var(--blue); }
+  .tag.followup{ background:rgba(242,169,59,.15); color:var(--gold); }
+  .tag.replied{ background:rgba(76,195,138,.15); color:var(--green); }
+  .tag.closed{ background:rgba(139,143,163,.15); color:var(--muted); }
+  .tag.lost{ background:rgba(229,87,107,.15); color:var(--red); }
+
+  .rowbtns{ display:flex; gap:6px; }
+  .iconbtn{ background:none; border:1px solid var(--line); color:var(--muted); border-radius:6px; padding:4px 8px; cursor:pointer; font-size:12px; }
+  .iconbtn:hover{ color:var(--text); border-color:var(--muted); }
+
+  select, input[type=text], input[type=date], input[type=number], textarea{
+    background:var(--ink); border:1px solid var(--line); color:var(--text);
+    border-radius:7px; padding:7px 9px; font-size:13px; font-family:inherit;
+  }
+  select:focus, input:focus, textarea:focus{ outline:1.5px solid var(--gold); }
+
+  .panel{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; margin-bottom:22px; }
+  .panel-head{ display:flex; justify-content:space-between; align-items:center; padding:14px 16px; border-bottom:1px solid var(--line); flex-wrap:wrap; gap:8px; }
+  .panel-head h2{ font-size:14px; margin:0; }
+  .panel-body{ padding:4px 16px 16px 16px; overflow-x:auto; }
+
+  .empty{ text-align:center; color:var(--muted); padding:40px 20px; font-size:13px; }
+
+  .overlay{ position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:50; padding:20px; }
+  .overlay.show{ display:flex; }
+  .modal{ background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:20px; width:400px; max-width:100%; max-height:90vh; overflow-y:auto; }
+  .modal h3{ margin:0 0 14px 0; font-size:15px; }
+  .field{ margin-bottom:12px; display:flex; flex-direction:column; gap:5px; }
+  .field label{ font-size:12px; color:var(--muted); }
+  .field input, .field select, .field textarea{ width:100%; }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
+  .modal-note{ color:var(--muted); font-size:11.5px; margin-top:-6px; margin-bottom:10px; }
+
+  .portfolio-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
+  .pcard{ background:var(--ink); border:1px solid var(--line); border-radius:8px; padding:12px; }
+  .pcard .ptitle{ font-weight:700; font-size:13.5px; margin-bottom:3px; }
+  .pcard .pmeta{ color:var(--muted); font-size:11.5px; margin-bottom:8px; }
+  .pcard a{ color:var(--blue); font-size:12px; text-decoration:none; }
+
+  .toast{
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+    background:var(--surface-2); border:1px solid var(--line); padding:9px 16px;
+    border-radius:8px; font-size:13px; opacity:0; transition:opacity .25s; pointer-events:none; z-index:100;
+  }
+  .toast.show{ opacity:1; }
+
+  .chartbox{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin-bottom:20px; }
+  .chartbox h2{ font-size:14px; margin:0 0 4px 0; }
+  .chartbox .chartsub{ color:var(--muted); font-size:12px; margin-bottom:12px; }
+  .chart-empty{ color:var(--muted); font-size:13px; padding:20px 0; text-align:center; }
+  .legend{ display:flex; gap:14px; margin-top:8px; flex-wrap:wrap; }
+  .legend span{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
+  .legend i{ width:10px; height:10px; border-radius:3px; display:inline-block; }
+
+  .databox{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:18px; margin-bottom:20px; }
+  .databox h2{ font-size:14px; margin:0 0 6px 0; }
+  .databox p{ color:var(--muted); font-size:12.5px; margin:0 0 12px 0; }
+  .databox .row{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+  .databox textarea{ width:100%; min-height:100px; font-family:ui-monospace,Menlo,monospace; font-size:11.5px; }
+
+  .kanban{ display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:22px; }
+  .kcol{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:14px; }
+  .kcol .khead{ font-size:12px; color:var(--muted); margin-bottom:4px; }
+  .kcol .kval{ font-size:20px; font-weight:800; font-variant-numeric:tabular-nums; }
+
+  @media (max-width:720px){
+    .app{ flex-direction:column; }
+    .side{ width:100%; flex-direction:row; overflow-x:auto; border-right:none; border-bottom:1px solid var(--line); }
+    .main{ padding:18px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="side">
+    <div class="brand">
+      <div>
+        <div class="name">Roster</div>
+        <div class="sub">Client tracker</div>
+      </div>
+      <div class="bell" onclick="showPage('dashboard')" title="Follow-ups due">
+        🔔<span class="dot" id="bell-count" style="display:none;">0</span>
+      </div>
+    </div>
+    <button class="navbtn active" data-page="dashboard" onclick="showPage('dashboard')">Dashboard</button>
+    <button class="navbtn" data-page="outreach" onclick="showPage('outreach')">Outreach <span class="count" id="cnt-outreach">0</span></button>
+    <button class="navbtn" data-page="content" onclick="showPage('content')">Content log <span class="count" id="cnt-content">0</span></button>
+    <button class="navbtn" data-page="portfolio" onclick="showPage('portfolio')">Portfolio <span class="count" id="cnt-portfolio">0</span></button>
+    <div class="navdiv"></div>
+    <button class="navbtn" data-page="analytics" onclick="showPage('analytics')">Analytics</button>
+    <button class="navbtn" data-page="data" onclick="showPage('data')">Data & backup</button>
+  </div>
+
+  <div class="main">
+
+    <!-- DASHBOARD -->
+    <div id="page-dashboard">
+      <div class="pagehead">
+        <div>
+          <h1>Dashboard</h1>
+          <p id="today-label"></p>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="num" id="stat-streak">0</div>
+          <div class="lbl">Day streak</div>
+        </div>
+        <div class="stat blue">
+          <div class="num" id="stat-total-outreach">0</div>
+          <div class="lbl">Total contacted</div>
+        </div>
+        <div class="stat green">
+          <div class="num" id="stat-response-rate">0%</div>
+          <div class="lbl">Response rate</div>
+        </div>
+        <div class="stat red">
+          <div class="num" id="stat-due">0</div>
+          <div class="lbl">Follow-ups due</div>
+        </div>
+        <div class="stat" style="border-top-color:var(--gold);">
+          <div class="num" id="stat-pipeline">$0</div>
+          <div class="lbl">Open pipeline value</div>
+        </div>
+        <div class="stat green">
+          <div class="num" id="stat-won">$0</div>
+          <div class="lbl">Won revenue</div>
+        </div>
+      </div>
+
+      <div class="checklist">
+        <h2>Today's routine</h2>
+        <div id="checklist-items"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Follow-ups due today or overdue</h2>
+          <button class="btn small secondary" id="notif-btn" onclick="requestNotifications()">Enable reminders</button>
+        </div>
+        <div class="panel-body">
+          <table id="due-table">
+            <thead><tr><th>Contact</th><th>Org</th><th>Status</th><th>Follow-up date</th><th></th></tr></thead>
+            <tbody id="due-tbody"></tbody>
+          </table>
+          <div class="empty" id="due-empty" style="display:none;">Nothing due — you're caught up.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OUTREACH -->
+    <div id="page-outreach" style="display:none;">
+      <div class="pagehead">
+        <div>
+          <h1>Outreach</h1>
+          <p>Every org and creator you've contacted</p>
+        </div>
+        <div class="headbtns">
+          <button class="btn secondary" onclick="exportCSV('outreach')">Export CSV</button>
+          <button class="btn" onclick="openOutreachModal()">+ Add contact</button>
+        </div>
+      </div>
+
+      <div class="kanban">
+        <div class="kcol"><div class="khead">Open pipeline</div><div class="kval" id="kanban-open">$0</div></div>
+        <div class="kcol"><div class="khead">Won</div><div class="kval" id="kanban-won">$0</div></div>
+        <div class="kcol"><div class="khead">Lost</div><div class="kval" id="kanban-lost">$0</div></div>
+        <div class="kcol"><div class="khead">Avg deal value</div><div class="kval" id="kanban-avg">$0</div></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-body">
+          <table>
+            <thead><tr><th>Contact</th><th>Org</th><th>Contacted</th><th>Status</th><th>Value</th><th>Follow-up</th><th>Notes</th><th></th></tr></thead>
+            <tbody id="outreach-tbody"></tbody>
+          </table>
+          <div class="empty" id="outreach-empty" style="display:none;">No contacts yet. Add your first one above.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONTENT -->
+    <div id="page-content" style="display:none;">
+      <div class="pagehead">
+        <div>
+          <h1>Content log</h1>
+          <p>What you've posted, and where</p>
+        </div>
+        <div class="headbtns">
+          <button class="btn secondary" onclick="exportCSV('content')">Export CSV</button>
+          <button class="btn" onclick="openContentModal()">+ Log post</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-body">
+          <table>
+            <thead><tr><th>Date</th><th>Platform</th><th>Description</th><th>Link</th><th></th></tr></thead>
+            <tbody id="content-tbody"></tbody>
+          </table>
+          <div class="empty" id="content-empty" style="display:none;">No posts logged yet.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PORTFOLIO -->
+    <div id="page-portfolio" style="display:none;">
+      <div class="pagehead">
+        <div>
+          <h1>Portfolio</h1>
+          <p>Your best pieces — the ones you lead with</p>
+        </div>
+        <div class="headbtns">
+          <button class="btn secondary" onclick="exportCSV('portfolio')">Export CSV</button>
+          <button class="btn" onclick="openPortfolioModal()">+ Add piece</button>
+        </div>
+      </div>
+      <div class="portfolio-grid" id="portfolio-grid"></div>
+      <div class="empty" id="portfolio-empty" style="display:none;">No pieces added yet.</div>
+    </div>
+
+    <!-- ANALYTICS -->
+    <div id="page-analytics" style="display:none;">
+      <div class="pagehead">
+        <div>
+          <h1>Analytics</h1>
+          <p>Trends across the last 8 weeks</p>
+        </div>
+      </div>
+
+      <div class="chartbox">
+        <h2>Outreach volume</h2>
+        <div class="chartsub">New contacts logged per week</div>
+        <div id="chart-outreach"></div>
+      </div>
+
+      <div class="chartbox">
+        <h2>Response rate</h2>
+        <div class="chartsub">Share of contacts marked replied or won, cumulative</div>
+        <div id="chart-response"></div>
+      </div>
+
+      <div class="chartbox">
+        <h2>Revenue</h2>
+        <div class="chartsub">Cumulative won revenue over time</div>
+        <div id="chart-revenue"></div>
+      </div>
+
+      <div class="chartbox">
+        <h2>Content posted</h2>
+        <div class="chartsub">Posts logged per week</div>
+        <div id="chart-content"></div>
+      </div>
+    </div>
+
+    <!-- DATA -->
+    <div id="page-data" style="display:none;">
+      <div class="pagehead">
+        <div>
+          <h1>Data & backup</h1>
+          <p>Export your data or restore from a saved backup</p>
+        </div>
+      </div>
+
+      <div class="databox">
+        <h2>Reminders</h2>
+        <p>Get a browser notification when a follow-up is due, the first time you open Roster that day.</p>
+        <button class="btn secondary" id="notif-btn-2" onclick="requestNotifications()">Enable browser reminders</button>
+        <span id="notif-status" style="color:var(--muted); font-size:12px; margin-left:10px;"></span>
+      </div>
+
+      <div class="databox">
+        <h2>Full backup</h2>
+        <p>Copy this text somewhere safe. Paste it back in below to restore everything — outreach, content, portfolio, and streaks.</p>
+        <div class="row">
+          <button class="btn secondary" onclick="generateBackup()">Generate backup</button>
+          <button class="btn secondary" id="copy-backup-btn" onclick="copyTextarea('backup-text')" style="display:none;">Copy to clipboard</button>
+        </div>
+        <textarea id="backup-text" readonly placeholder="Click 'Generate backup' to create a copyable snapshot of all your data." style="display:none;"></textarea>
+      </div>
+
+      <div class="databox">
+        <h2>Restore from backup</h2>
+        <p>Paste a previously generated backup below. This replaces all current data — make sure you mean it.</p>
+        <textarea id="restore-text" placeholder="Paste your backup JSON here"></textarea>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn danger" onclick="restoreBackup()">Restore</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Outreach Modal -->
+<div class="overlay" id="outreach-overlay">
+  <div class="modal">
+    <h3 id="outreach-modal-title">Add contact</h3>
+    <input type="hidden" id="outreach-id">
+    <div class="field"><label>Contact name</label><input type="text" id="outreach-name" placeholder="e.g. Jordan Lee"></div>
+    <div class="field"><label>Org / team</label><input type="text" id="outreach-org" placeholder="e.g. Nova Esports"></div>
+    <div class="field"><label>Date contacted</label><input type="date" id="outreach-date"></div>
+    <div class="field"><label>Status</label>
+      <select id="outreach-status">
+        <option value="new">New / no response</option>
+        <option value="replied">Replied</option>
+        <option value="followup">Needs follow-up</option>
+        <option value="closed">Closed — won</option>
+        <option value="lost">Closed — lost</option>
+      </select>
+    </div>
+    <div class="field"><label>Deal value ($, optional)</label><input type="number" id="outreach-value" placeholder="e.g. 500" min="0" step="1"></div>
+    <div class="field"><label>Follow-up date (optional)</label><input type="date" id="outreach-followup"></div>
+    <div class="field"><label>Notes</label><textarea id="outreach-notes" rows="2" placeholder="Platform, what you pitched, anything to remember"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('outreach-overlay')">Cancel</button>
+      <button class="btn" onclick="saveOutreach()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Content Modal -->
+<div class="overlay" id="content-overlay">
+  <div class="modal">
+    <h3>Log a post</h3>
+    <input type="hidden" id="content-id">
+    <div class="field"><label>Date</label><input type="date" id="content-date"></div>
+    <div class="field"><label>Platform</label>
+      <select id="content-platform">
+        <option>Twitter / X</option>
+        <option>Instagram</option>
+        <option>TikTok</option>
+        <option>Discord</option>
+        <option>YouTube</option>
+        <option>Other</option>
+      </select>
+    </div>
+    <div class="field"><label>Description</label><input type="text" id="content-desc" placeholder="e.g. Rebrand concept for Team X"></div>
+    <div class="field"><label>Link (optional)</label><input type="text" id="content-link" placeholder="https://..."></div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('content-overlay')">Cancel</button>
+      <button class="btn" onclick="saveContent()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Portfolio Modal -->
+<div class="overlay" id="portfolio-overlay">
+  <div class="modal">
+    <h3>Add portfolio piece</h3>
+    <input type="hidden" id="portfolio-id">
+    <div class="field"><label>Title</label><input type="text" id="portfolio-title" placeholder="e.g. Nova Esports Jersey Concept"></div>
+    <div class="field"><label>Category</label><input type="text" id="portfolio-category" placeholder="e.g. Jersey, Logo, Overlay, Emote"></div>
+    <div class="field"><label>Link (optional)</label><input type="text" id="portfolio-link" placeholder="https://..."></div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('portfolio-overlay')">Cancel</button>
+      <button class="btn" onclick="savePortfolio()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Export Modal -->
+<div class="overlay" id="export-overlay">
+  <div class="modal">
+    <h3 id="export-modal-title">Export CSV</h3>
+    <div class="modal-note">Select all and copy, or use the button below.</div>
+    <textarea id="export-text" readonly style="min-height:200px; font-family:ui-monospace,Menlo,monospace; font-size:11.5px;"></textarea>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('export-overlay')">Close</button>
+      <button class="btn" onclick="copyTextarea('export-text')">Copy to clipboard</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let state = {
+  outreach: [],
+  content: [],
+  portfolio: [],
+  checklistDone: {},
+  streak: 0,
+  lastActiveDate: null,
+  lastNotifiedDate: null
+};
+
+const CHECKLIST_ITEMS = [
+  { id: 'post', label: 'Post one piece of work' },
+  { id: 'comment', label: 'Comment on 3+ posts from target orgs' },
+  { id: 'outreach', label: 'Contact 3–5 new orgs/teams' },
+  { id: 'followup', label: 'Follow up on old contacts' },
+  { id: 'portfolio', label: 'Portfolio still reflects your best work' }
+];
+
+function todayStr(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function fmtMoney(n){
+  n = Number(n)||0;
+  return '$' + n.toLocaleString(undefined,{maximumFractionDigits:0});
+}
+
+async function loadState(){
+  try{
+    const r = await window.storage.get('roster-state', false);
+    if(r && r.value){
+      const parsed = JSON.parse(r.value);
+      state = Object.assign(state, parsed);
+    }
+  }catch(e){
+    console.log('No existing state, starting fresh.');
+  }
+  checkStreak();
+  renderAll();
+  maybeNotify();
+  updateNotifStatus();
+}
+
+async function saveState(){
+  try{
+    const result = await window.storage.set('roster-state', JSON.stringify(state), false);
+    if(!result){ showToast('Save failed — try again'); }
+  }catch(e){
+    console.error('Storage error', e);
+    showToast('Save failed — try again');
+  }
+}
+
+function checkStreak(){
+  const today = todayStr();
+  if(state.lastActiveDate === today) return;
+  if(!state.lastActiveDate){ state.lastActiveDate = today; return; }
+  const last = new Date(state.lastActiveDate);
+  const now = new Date(today);
+  const diffDays = Math.round((now - last) / 86400000);
+  if(diffDays > 1){ state.streak = 0; }
+  state.lastActiveDate = today;
+  if(!state.checklistDone[today]) state.checklistDone[today] = {};
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+function showPage(page){
+  document.querySelectorAll('[id^="page-"]').forEach(el=>el.style.display='none');
+  document.getElementById('page-'+page).style.display='block';
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
+  const btn = document.querySelector('.navbtn[data-page="'+page+'"]');
+  if(btn) btn.classList.add('active');
+  if(page==='analytics') renderCharts();
+}
+
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+
+/* ---------- Reminders / Notifications ---------- */
+function requestNotifications(){
+  if(!('Notification' in window)){ showToast('Notifications not supported in this browser'); return; }
+  Notification.requestPermission().then(perm=>{
+    updateNotifStatus();
+    if(perm === 'granted'){ showToast('Reminders enabled'); maybeNotify(true); }
+    else{ showToast('Notifications blocked — check browser settings'); }
+  });
+}
+function updateNotifStatus(){
+  let label = 'Not supported';
+  if('Notification' in window){
+    label = Notification.permission === 'granted' ? 'Enabled' : Notification.permission === 'denied' ? 'Blocked in browser settings' : 'Not enabled';
+  }
+  const s = document.getElementById('notif-status');
+  if(s) s.textContent = label;
+  ['notif-btn','notif-btn-2'].forEach(id=>{
+    const b = document.getElementById(id);
+    if(b) b.style.display = ('Notification' in window && Notification.permission === 'granted') ? 'none' : 'inline-block';
+  });
+}
+function maybeNotify(force){
+  if(!('Notification' in window) || Notification.permission !== 'granted') return;
+  const today = todayStr();
+  if(!force && state.lastNotifiedDate === today) return;
+  const due = state.outreach.filter(c=>c.followup && c.followup <= today && c.status!=='closed' && c.status!=='lost');
+  if(due.length > 0){
+    try{
+      new Notification('Roster — follow-ups due', { body: due.length + ' contact(s) need a follow-up today.' });
+    }catch(e){}
+  }
+  state.lastNotifiedDate = today;
+  saveState();
+}
+
+/* ---------- Checklist ---------- */
+function renderChecklist(){
+  const today = todayStr();
+  if(!state.checklistDone[today]) state.checklistDone[today] = {};
+  const done = state.checklistDone[today];
+  const el = document.getElementById('checklist-items');
+  el.innerHTML = '';
+  CHECKLIST_ITEMS.forEach(item=>{
+    const isDone = !!done[item.id];
+    const row = document.createElement('div');
+    row.className = 'citem' + (isDone ? ' done' : '');
+    row.innerHTML = `<input type="checkbox" id="chk-${item.id}" ${isDone?'checked':''}>
+      <label for="chk-${item.id}">${item.label}</label>`;
+    el.appendChild(row);
+    row.querySelector('input').addEventListener('change', (e)=>{ toggleChecklist(item.id, e.target.checked); });
+  });
+  document.getElementById('today-label').textContent = new Date().toLocaleDateString(undefined,{weekday:'long', month:'long', day:'numeric'});
+}
+function toggleChecklist(id, checked){
+  const today = todayStr();
+  if(!state.checklistDone[today]) state.checklistDone[today] = {};
+  const wasAnyDoneBefore = Object.values(state.checklistDone[today]).some(v=>v);
+  state.checklistDone[today][id] = checked;
+  const isAnyDoneNow = Object.values(state.checklistDone[today]).some(v=>v);
+  if(!wasAnyDoneBefore && isAnyDoneNow){ state.streak = (state.streak || 0) + 1; }
+  if(wasAnyDoneBefore && !isAnyDoneNow){ state.streak = Math.max(0, (state.streak||0) - 1); }
+  saveState();
+  renderChecklist();
+  renderStats();
+}
+
+/* ---------- Outreach ---------- */
+function openOutreachModal(id){
+  document.getElementById('outreach-modal-title').textContent = id ? 'Edit contact' : 'Add contact';
+  document.getElementById('outreach-id').value = id || '';
+  if(id){
+    const c = state.outreach.find(x=>x.id===id);
+    document.getElementById('outreach-name').value = c.name;
+    document.getElementById('outreach-org').value = c.org;
+    document.getElementById('outreach-date').value = c.date;
+    document.getElementById('outreach-status').value = c.status;
+    document.getElementById('outreach-value').value = c.value || '';
+    document.getElementById('outreach-followup').value = c.followup || '';
+    document.getElementById('outreach-notes').value = c.notes || '';
+  }else{
+    document.getElementById('outreach-name').value = '';
+    document.getElementById('outreach-org').value = '';
+    document.getElementById('outreach-date').value = todayStr();
+    document.getElementById('outreach-status').value = 'new';
+    document.getElementById('outreach-value').value = '';
+    document.getElementById('outreach-followup').value = '';
+    document.getElementById('outreach-notes').value = '';
+  }
+  document.getElementById('outreach-overlay').classList.add('show');
+}
+function saveOutreach(){
+  const id = document.getElementById('outreach-id').value;
+  const name = document.getElementById('outreach-name').value.trim();
+  if(!name){ showToast('Add a contact name'); return; }
+  const status = document.getElementById('outreach-status').value;
+  const record = {
+    id: id || uid(),
+    name,
+    org: document.getElementById('outreach-org').value.trim(),
+    date: document.getElementById('outreach-date').value || todayStr(),
+    status,
+    value: Number(document.getElementById('outreach-value').value) || 0,
+    wonDate: status === 'closed' ? (document.getElementById('outreach-date').value || todayStr()) : null,
+    followup: document.getElementById('outreach-followup').value,
+    notes: document.getElementById('outreach-notes').value.trim()
+  };
+  if(id){
+    const idx = state.outreach.findIndex(x=>x.id===id);
+    if(status === 'closed' && state.outreach[idx].status !== 'closed'){
+      record.wonDate = todayStr();
+    } else if (status === 'closed') {
+      record.wonDate = state.outreach[idx].wonDate || todayStr();
+    }
+    state.outreach[idx] = record;
+  }else{
+    state.outreach.unshift(record);
+  }
+  saveState();
+  renderOutreach();
+  renderStats();
+  closeModal('outreach-overlay');
+  showToast('Saved');
+}
+function deleteOutreach(id){
+  state.outreach = state.outreach.filter(x=>x.id!==id);
+  saveState();
+  renderOutreach();
+  renderStats();
+}
+function statusTag(status){
+  const map = {
+    new:['new','New'], replied:['replied','Replied'], followup:['followup','Follow-up'],
+    closed:['closed','Won'], lost:['lost','Lost']
+  };
+  const [cls,label] = map[status] || ['new','New'];
+  return `<span class="tag ${cls}">${label}</span>`;
+}
+function renderOutreach(){
+  const tbody = document.getElementById('outreach-tbody');
+  tbody.innerHTML = '';
+  document.getElementById('outreach-empty').style.display = state.outreach.length ? 'none' : 'block';
+  document.getElementById('cnt-outreach').textContent = state.outreach.length;
+  state.outreach.forEach(c=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(c.name)}</td>
+      <td>${escapeHtml(c.org||'—')}</td>
+      <td>${c.date||'—'}</td>
+      <td>${statusTag(c.status)}</td>
+      <td>${c.value ? fmtMoney(c.value) : '—'}</td>
+      <td>${c.followup||'—'}</td>
+      <td>${escapeHtml(c.notes||'')}</td>
+      <td><div class="rowbtns">
+        <button class="iconbtn" onclick="openOutreachModal('${c.id}')">Edit</button>
+        <button class="iconbtn" onclick="deleteOutreach('${c.id}')">Delete</button>
+      </div></td>`;
+    tbody.appendChild(tr);
+  });
+
+  const open = state.outreach.filter(c=>c.status!=='closed' && c.status!=='lost');
+  const won = state.outreach.filter(c=>c.status==='closed');
+  const lost = state.outreach.filter(c=>c.status==='lost');
+  const openVal = open.reduce((s,c)=>s+(Number(c.value)||0),0);
+  const wonVal = won.reduce((s,c)=>s+(Number(c.value)||0),0);
+  const lostVal = lost.reduce((s,c)=>s+(Number(c.value)||0),0);
+  const valued = state.outreach.filter(c=>c.value);
+  const avg = valued.length ? valued.reduce((s,c)=>s+Number(c.value),0)/valued.length : 0;
+  document.getElementById('kanban-open').textContent = fmtMoney(openVal);
+  document.getElementById('kanban-won').textContent = fmtMoney(wonVal);
+  document.getElementById('kanban-lost').textContent = fmtMoney(lostVal);
+  document.getElementById('kanban-avg').textContent = fmtMoney(avg);
+}
+
+/* ---------- Content ---------- */
+function openContentModal(){
+  document.getElementById('content-id').value = '';
+  document.getElementById('content-date').value = todayStr();
+  document.getElementById('content-platform').value = 'Twitter / X';
+  document.getElementById('content-desc').value = '';
+  document.getElementById('content-link').value = '';
+  document.getElementById('content-overlay').classList.add('show');
+}
+function saveContent(){
+  const desc = document.getElementById('content-desc').value.trim();
+  if(!desc){ showToast('Add a description'); return; }
+  state.content.unshift({
+    id: uid(),
+    date: document.getElementById('content-date').value || todayStr(),
+    platform: document.getElementById('content-platform').value,
+    desc,
+    link: document.getElementById('content-link').value.trim()
+  });
+  saveState();
+  renderContent();
+  closeModal('content-overlay');
+  showToast('Logged');
+}
+function deleteContent(id){
+  state.content = state.content.filter(x=>x.id!==id);
+  saveState();
+  renderContent();
+}
+function renderContent(){
+  const tbody = document.getElementById('content-tbody');
+  tbody.innerHTML = '';
+  document.getElementById('content-empty').style.display = state.content.length ? 'none' : 'block';
+  document.getElementById('cnt-content').textContent = state.content.length;
+  state.content.forEach(c=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${c.date}</td>
+      <td>${escapeHtml(c.platform)}</td>
+      <td>${escapeHtml(c.desc)}</td>
+      <td>${c.link ? `<a href="${escapeAttr(c.link)}" target="_blank" style="color:var(--blue)">link</a>` : '—'}</td>
+      <td><button class="iconbtn" onclick="deleteContent('${c.id}')">Delete</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+/* ---------- Portfolio ---------- */
+function openPortfolioModal(){
+  document.getElementById('portfolio-id').value = '';
+  document.getElementById('portfolio-title').value = '';
+  document.getElementById('portfolio-category').value = '';
+  document.getElementById('portfolio-link').value = '';
+  document.getElementById('portfolio-overlay').classList.add('show');
+}
+function savePortfolio(){
+  const title = document.getElementById('portfolio-title').value.trim();
+  if(!title){ showToast('Add a title'); return; }
+  state.portfolio.unshift({
+    id: uid(),
+    title,
+    category: document.getElementById('portfolio-category').value.trim(),
+    link: document.getElementById('portfolio-link').value.trim()
+  });
+  saveState();
+  renderPortfolio();
+  closeModal('portfolio-overlay');
+  showToast('Added');
+}
+function deletePortfolio(id){
+  state.portfolio = state.portfolio.filter(x=>x.id!==id);
+  saveState();
+  renderPortfolio();
+}
+function renderPortfolio(){
+  const grid = document.getElementById('portfolio-grid');
+  grid.innerHTML = '';
+  document.getElementById('portfolio-empty').style.display = state.portfolio.length ? 'none' : 'block';
+  document.getElementById('cnt-portfolio').textContent = state.portfolio.length;
+  state.portfolio.forEach(p=>{
+    const card = document.createElement('div');
+    card.className = 'pcard';
+    card.innerHTML = `
+      <div class="ptitle">${escapeHtml(p.title)}</div>
+      <div class="pmeta">${escapeHtml(p.category||'Uncategorized')}</div>
+      ${p.link ? `<a href="${escapeAttr(p.link)}" target="_blank">View piece →</a>` : ''}
+      <div style="margin-top:8px;"><button class="iconbtn" onclick="deletePortfolio('${p.id}')">Delete</button></div>`;
+    grid.appendChild(card);
+  });
+}
+
+/* ---------- Stats & Dashboard ---------- */
+function renderStats(){
+  document.getElementById('stat-streak').textContent = state.streak || 0;
+  document.getElementById('stat-total-outreach').textContent = state.outreach.length;
+  const responded = state.outreach.filter(c=>c.status==='replied'||c.status==='closed').length;
+  const rate = state.outreach.length ? Math.round((responded/state.outreach.length)*100) : 0;
+  document.getElementById('stat-response-rate').textContent = rate + '%';
+
+  const today = todayStr();
+  const due = state.outreach.filter(c=>c.followup && c.followup <= today && c.status!=='closed' && c.status!=='lost');
+  document.getElementById('stat-due').textContent = due.length;
+
+  const open = state.outreach.filter(c=>c.status!=='closed' && c.status!=='lost');
+  const won = state.outreach.filter(c=>c.status==='closed');
+  document.getElementById('stat-pipeline').textContent = fmtMoney(open.reduce((s,c)=>s+(Number(c.value)||0),0));
+  document.getElementById('stat-won').textContent = fmtMoney(won.reduce((s,c)=>s+(Number(c.value)||0),0));
+
+  const bell = document.getElementById('bell-count');
+  if(due.length > 0){ bell.style.display='block'; bell.textContent = due.length; }
+  else{ bell.style.display='none'; }
+
+  const dueTbody = document.getElementById('due-tbody');
+  dueTbody.innerHTML = '';
+  document.getElementById('due-empty').style.display = due.length ? 'none' : 'block';
+  due.forEach(c=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(c.name)}</td>
+      <td>${escapeHtml(c.org||'—')}</td>
+      <td>${statusTag(c.status)}</td>
+      <td>${c.followup}</td>
+      <td><button class="iconbtn" onclick="openOutreachModal('${c.id}')">Open</button></td>`;
+    dueTbody.appendChild(tr);
+  });
+}
+
+/* ---------- Analytics ---------- */
+function weekKey(dateStr){
+  const d = new Date(dateStr);
+  if(isNaN(d)) return null;
+  const onejan = new Date(d.getFullYear(),0,1);
+  const week = Math.ceil((((d - onejan) / 86400000) + onejan.getDay()+1)/7);
+  return d.getFullYear()+'-W'+String(week).padStart(2,'0');
+}
+function lastNWeekKeys(n){
+  const keys = [];
+  const seen = new Set();
+  for(let i=n-1;i>=0;i--){
+    const d = new Date();
+    d.setDate(d.getDate() - i*7);
+    const k = weekKey(d.toISOString().slice(0,10));
+    if(!seen.has(k)){ keys.push(k); seen.add(k); }
+  }
+  return keys;
+}
+function barChart(containerId, data, color, valueFormatter){
+  const el = document.getElementById(containerId);
+  if(!data.length || data.every(d=>d.value===0)){
+    el.innerHTML = '<div class="chart-empty">Not enough data yet — keep logging daily.</div>';
+    return;
+  }
+  const max = Math.max(...data.map(d=>d.value), 1);
+  const w = 700, h = 160, padL = 4, padB = 22, barGap = 8;
+  const barW = (w - padL*2 - barGap*(data.length-1)) / data.length;
+  let bars = '';
+  data.forEach((d,i)=>{
+    const barH = Math.max(2, (d.value/max) * (h - padB - 10));
+    const x = padL + i*(barW+barGap);
+    const y = h - padB - barH;
+    bars += `<rect x="${x}" y="${y}" width="${barW}" height="${barH}" fill="${color}" rx="3"></rect>`;
+    bars += `<text x="${x+barW/2}" y="${h-6}" text-anchor="middle" font-size="9.5" fill="#8B8FA3">${d.label}</text>`;
+    bars += `<text x="${x+barW/2}" y="${y-4}" text-anchor="middle" font-size="10" fill="#ECEDF2">${valueFormatter?valueFormatter(d.value):d.value}</text>`;
+  });
+  el.innerHTML = `<svg viewBox="0 0 ${w} ${h}" style="width:100%; height:auto;">${bars}</svg>`;
+}
+function lineChart(containerId, data, color, valueFormatter){
+  const el = document.getElementById(containerId);
+  if(!data.length){
+    el.innerHTML = '<div class="chart-empty">Not enough data yet — keep logging daily.</div>';
+    return;
+  }
+  const max = Math.max(...data.map(d=>d.value), 1);
+  const w = 700, h = 160, padL = 6, padR = 6, padB = 22, padT = 16;
+  const stepX = (w - padL - padR) / Math.max(1,(data.length-1));
+  const points = data.map((d,i)=>{
+    const x = padL + i*stepX;
+    const y = padT + (1 - d.value/max) * (h - padT - padB);
+    return {x,y,label:d.label,value:d.value};
+  });
+  const path = points.map((p,i)=> (i===0?'M':'L') + p.x.toFixed(1)+','+p.y.toFixed(1)).join(' ');
+  const dots = points.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="3" fill="${color}"></circle>`).join('');
+  const labels = points.map((p,i)=> i % Math.ceil(points.length/8 || 1) === 0 ? `<text x="${p.x}" y="${h-6}" text-anchor="middle" font-size="9.5" fill="#8B8FA3">${p.label}</text>` : '').join('');
+  const lastLabel = `<text x="${points[points.length-1].x}" y="${points[points.length-1].y-8}" text-anchor="middle" font-size="10" fill="#ECEDF2">${valueFormatter?valueFormatter(points[points.length-1].value):points[points.length-1].value}</text>`;
+  el.innerHTML = `<svg viewBox="0 0 ${w} ${h}" style="width:100%; height:auto;">
+    <path d="${path}" fill="none" stroke="${color}" stroke-width="2"></path>
+    ${dots}${labels}${lastLabel}
+  </svg>`;
+}
+function renderCharts(){
+  const weeks = lastNWeekKeys(8);
+  const shortLabel = k => 'W'+k.split('-W')[1];
+
+  const outreachByWeek = weeks.map(k=>({label:shortLabel(k), value: state.outreach.filter(c=>weekKey(c.date)===k).length}));
+  barChart('chart-outreach', outreachByWeek, '#4C8DFF');
+
+  const contentByWeek = weeks.map(k=>({label:shortLabel(k), value: state.content.filter(c=>weekKey(c.date)===k).length}));
+  barChart('chart-content', contentByWeek, '#F2A93B');
+
+  let cumContacted = 0, cumResponded = 0;
+  const responseByWeek = weeks.map(k=>{
+    const wkContacts = state.outreach.filter(c=>weekKey(c.date)===k);
+    cumContacted += wkContacts.length;
+    cumResponded += wkContacts.filter(c=>c.status==='replied'||c.status==='closed').length;
+    const rate = cumContacted ? Math.round((cumResponded/cumContacted)*100) : 0;
+    return {label:shortLabel(k), value: rate};
+  });
+  lineChart('chart-response', responseByWeek, '#4CC38A', v=>v+'%');
+
+  let cumRevenue = 0;
+  const revenueByWeek = weeks.map(k=>{
+    const wkWon = state.outreach.filter(c=>c.status==='closed' && weekKey(c.wonDate||c.date)===k);
+    cumRevenue += wkWon.reduce((s,c)=>s+(Number(c.value)||0),0);
+    return {label:shortLabel(k), value: cumRevenue};
+  });
+  lineChart('chart-revenue', revenueByWeek, '#F2A93B', v=>fmtMoney(v));
+}
+
+/* ---------- CSV Export ---------- */
+function toCSV(rows, headers){
+  const esc = v => {
+    v = (v===undefined||v===null) ? '' : String(v);
+    if(/[",\n]/.test(v)) v = '"' + v.replace(/"/g,'""') + '"';
+    return v;
+  };
+  const lines = [headers.map(h=>esc(h.label)).join(',')];
+  rows.forEach(r=>{
+    lines.push(headers.map(h=>esc(r[h.key])).join(','));
+  });
+  return lines.join('\n');
+}
+function exportCSV(type){
+  let csv = '', title = '';
+  if(type==='outreach'){
+    title = 'Outreach — CSV';
+    csv = toCSV(state.outreach, [
+      {key:'name',label:'Name'},{key:'org',label:'Org'},{key:'date',label:'Date contacted'},
+      {key:'status',label:'Status'},{key:'value',label:'Value'},{key:'followup',label:'Follow-up date'},{key:'notes',label:'Notes'}
+    ]);
+  } else if(type==='content'){
+    title = 'Content log — CSV';
+    csv = toCSV(state.content, [
+      {key:'date',label:'Date'},{key:'platform',label:'Platform'},{key:'desc',label:'Description'},{key:'link',label:'Link'}
+    ]);
+  } else if(type==='portfolio'){
+    title = 'Portfolio — CSV';
+    csv = toCSV(state.portfolio, [
+      {key:'title',label:'Title'},{key:'category',label:'Category'},{key:'link',label:'Link'}
+    ]);
+  }
+  document.getElementById('export-modal-title').textContent = title;
+  document.getElementById('export-text').value = csv;
+  document.getElementById('export-overlay').classList.add('show');
+}
+
+/* ---------- Backup / Restore ---------- */
+function generateBackup(){
+  const dump = JSON.stringify(state, null, 0);
+  const ta = document.getElementById('backup-text');
+  ta.value = dump;
+  ta.style.display = 'block';
+  document.getElementById('copy-backup-btn').style.display = 'inline-block';
+  showToast('Backup ready — copy it now');
+}
+function restoreBackup(){
+  const txt = document.getElementById('restore-text').value.trim();
+  if(!txt){ showToast('Paste a backup first'); return; }
+  let parsed;
+  try{ parsed = JSON.parse(txt); }
+  catch(e){ showToast('That doesn\\'t look like valid backup data'); return; }
+  if(!confirm('This will replace all current data. Continue?')) return;
+  state = Object.assign({outreach:[],content:[],portfolio:[],checklistDone:{},streak:0,lastActiveDate:null,lastNotifiedDate:null}, parsed);
+  saveState();
+  renderAll();
+  showToast('Restored');
+  document.getElementById('restore-text').value = '';
+}
+function copyTextarea(id){
+  const ta = document.getElementById(id);
+  ta.select();
+  try{
+    navigator.clipboard.writeText(ta.value).then(()=>showToast('Copied')).catch(()=>fallbackCopy(ta));
+  }catch(e){ fallbackCopy(ta); }
+}
+function fallbackCopy(ta){
+  try{ document.execCommand('copy'); showToast('Copied'); }
+  catch(e){ showToast('Copy failed — select and copy manually'); }
+}
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str || '';
+  return d.innerHTML;
+}
+function escapeAttr(str){ return (str||'').replace(/"/g,'&quot;'); }
+
+function renderAll(){
+  renderChecklist();
+  renderOutreach();
+  renderContent();
+  renderPortfolio();
+  renderStats();
+}
+
+loadState();
+</script>
+
+</body>
+</html>
